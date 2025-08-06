@@ -127,7 +127,7 @@
                     <div>
                         <label class="form-label">Qual seria seu papel num apocalipse zumbi?</label>
                         <div class="space-y-2">
-                            <label class="radio-option"><input type="radio" name="zumbi" value="lider"><span class="radio-label ml-4">A líder destemida que salva todo mundo.</span></label>
+                            <label class="radio-option"><input type="radio" name="zumbi" value="lider" required><span class="radio-label ml-4">A líder destemida que salva todo mundo.</span></label>
                             <label class="radio-option"><input type="radio" name="zumbi" value="piadista"><span class="radio-label ml-4">A que faz piada na hora errada pra aliviar o clima.</span></label>
                             <label class="radio-option"><input type="radio" name="zumbi" value="primeira"><span class="radio-label ml-4">A que tropeça e vira zumbi primeiro (acontece).</span></label>
                         </div>
@@ -150,18 +150,18 @@
                     <div>
                         <label class="form-label">Sobre líquidos que alteram a percepção da realidade...</label>
                         <div class="space-y-2">
-                            <label class="radio-option"><input type="radio" name="bebida" value="socialmente"><span class="radio-label ml-4">Bebo socialmente (uma cervejinha, um drink, etc).</span></label>
-                            <label class="radio-option"><input type="radio" name="nao_bebo"><span class="radio-label ml-4">Prefiro não beber, mas acompanho 100% na vibe e no suco.</span></label>
-                            <label class="radio-option"><input type="radio" name="enologa"><span class="radio-label ml-4">Sou praticamente uma enóloga amadora, adoro provar coisas novas.</span></label>
+                            <label class="radio-option"><input type="radio" name="bebida" value="socialmente" required><span class="radio-label ml-4">Bebo socialmente (uma cervejinha, um drink, etc).</span></label>
+                            <label class="radio-option"><input type="radio" name="bebida" value="nao_bebo"><span class="radio-label ml-4">Prefiro não beber, mas acompanho 100% na vibe e no suco.</span></label>
+                            <label class="radio-option"><input type="radio" name="bebida" value="enologa"><span class="radio-label ml-4">Sou praticamente uma enóloga amadora, adoro provar coisas novas.</span></label>
                         </div>
                     </div>
                     <div>
                         <label class="form-label">E a grande pergunta sobre o TikTok...</label>
                         <p class="form-description mb-4">A história é real (juro!): estamos gravando um mini-doc/TikTok sobre a saga do nosso amigo pra dar o primeiro beijo. A ideia é ser algo leve e engraçado, NADA constrangedor. Com isso em mente:</p>
                         <div class="space-y-2">
-                            <label class="radio-option"><input type="radio" name="video" value="sim"><span class="radio-label ml-4">Sim, topo participar da brincadeira! Achei a ideia hilária. (Você é a nossa estrela!) ✨</span></label>
-                            <label class="radio-option"><input type="radio" name="nao"><span class="radio-label ml-4">Hmm, prefiro não aparecer, mas topo o date duplo pra dar uma força moral! (A gente super entende e agradece!) 🙏</span></label>
-                            <label class="radio-option"><input type="radio" name="talvez"><span class="radio-label ml-4">Preciso de mais detalhes antes de decidir. (Justo! A gente explica tudo sem pressão.) 🤔</span></label>
+                            <label class="radio-option"><input type="radio" name="video" value="sim" required><span class="radio-label ml-4">Sim, topo participar da brincadeira! Achei a ideia hilária. (Você é a nossa estrela!) ✨</span></label>
+                            <label class="radio-option"><input type="radio" name="video" value="nao"><span class="radio-label ml-4">Hmm, prefiro não aparecer, mas topo o date duplo pra dar uma força moral! (A gente super entende e agradece!) 🙏</span></label>
+                            <label class="radio-option"><input type="radio" name="video" value="talvez"><span class="radio-label ml-4">Preciso de mais detalhes antes de decidir. (Justo! A gente explica tudo sem pressão.) 🤔</span></label>
                         </div>
                     </div>
                 </div>
@@ -210,23 +210,40 @@
             }
         }
         
+        // --- FUNÇÃO CORRIGIDA ---
         function validateStep(stepIndex) {
             const currentStepElement = formSteps[stepIndex];
-            const inputs = currentStepElement.querySelectorAll('input[required], textarea[required], select[required]');
             let isValid = true;
-            inputs.forEach(input => {
-                if (!input.value.trim()) isValid = false;
+
+            // 1. Validação para inputs de texto, select, etc (que usam 'required')
+            const requiredInputs = currentStepElement.querySelectorAll('input[required], textarea[required], select[required]');
+            requiredInputs.forEach(input => {
+                // Se for um radio button, a lógica abaixo já cuida dele.
+                if (input.type === 'radio') return;
+                
+                if (!input.value.trim()) {
+                    isValid = false;
+                }
             });
-            // Validação para Radio buttons
-            const radioGroups = currentStepElement.querySelectorAll('input[type="radio"]');
-            if (radioGroups.length > 0) {
-                 const groupName = radioGroups[0].name;
-                 if (!document.querySelector(`input[name="${groupName}"]:checked`)) {
-                     isValid = false;
-                 }
-            }
+
+            // 2. Validação para TODOS os grupos de radio buttons no passo atual
+            const radioGroups = new Set();
+            // Pega o nome de todos os grupos de radio que são 'required'
+            currentStepElement.querySelectorAll('input[type="radio"][required]').forEach(radio => {
+                radioGroups.add(radio.name);
+            });
+
+            // Itera sobre cada nome de grupo único (ex: 'bebida', 'video') e verifica se algum foi marcado
+            radioGroups.forEach(groupName => {
+                const isGroupChecked = currentStepElement.querySelector(`input[name="${groupName}"]:checked`);
+                if (!isGroupChecked) {
+                    isValid = false;
+                }
+            });
+
             return isValid;
         }
+
 
         nextBtn.addEventListener('click', () => {
             if (validateStep(currentStep)) {
@@ -250,7 +267,17 @@
             }
         });
 
-        updateForm();
+        // Adiciona a tag 'required' ao primeiro radio de cada grupo para a validação funcionar
+        document.addEventListener('DOMContentLoaded', () => {
+             const radioGroups = {};
+             document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                if (!radioGroups[radio.name]) {
+                    radioGroups[radio.name] = true;
+                    radio.required = true;
+                }
+             });
+             updateForm();
+        });
     </script>
 </body>
 </html>
