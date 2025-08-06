@@ -185,65 +185,79 @@
         </div>
     </div>
 
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script>
         const formContainer = document.querySelector('.max-w-2xl.mx-auto');
         const thankYouPage = document.getElementById('thank-you-page');
         const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
+        const form = document.getElementById('casting-form');
         const formSteps = [...document.querySelectorAll('.form-section')];
         const progressSteps = [...document.querySelectorAll('.progress-step')];
         let currentStep = 0;
 
+        // INICIO - LÓGICA DE ENVIO COM EMAILJS
+        (function() {
+            emailjs.init({
+                publicKey: "3kX8KhH13WgqQxWMK", // <-- SUA PUBLIC KEY
+            });
+        })();
+        // FIM - LÓGICA DE ENVIO COM EMAILJS
+
         function updateForm() {
             formSteps.forEach(step => step.classList.remove('active'));
             formSteps[currentStep].classList.add('active');
-
             progressSteps.forEach((step, index) => {
                 step.classList.toggle('active', index <= currentStep);
             });
-
             prevBtn.style.display = currentStep === 0 ? 'none' : 'inline-block';
-            if (currentStep === formSteps.length - 1) {
-                nextBtn.textContent = 'Enviar Casting 🚀';
-            } else {
-                nextBtn.textContent = 'Próximo';
-            }
+            nextBtn.textContent = (currentStep === formSteps.length - 1) ? 'Enviar Casting 🚀' : 'Próximo';
         }
         
-        // --- FUNÇÃO CORRIGIDA ---
         function validateStep(stepIndex) {
             const currentStepElement = formSteps[stepIndex];
             let isValid = true;
-
-            // 1. Validação para inputs de texto, select, etc (que usam 'required')
             const requiredInputs = currentStepElement.querySelectorAll('input[required], textarea[required], select[required]');
             requiredInputs.forEach(input => {
-                // Se for um radio button, a lógica abaixo já cuida dele.
                 if (input.type === 'radio') return;
-                
-                if (!input.value.trim()) {
-                    isValid = false;
-                }
+                if (!input.value.trim()) isValid = false;
             });
-
-            // 2. Validação para TODOS os grupos de radio buttons no passo atual
             const radioGroups = new Set();
-            // Pega o nome de todos os grupos de radio que são 'required'
             currentStepElement.querySelectorAll('input[type="radio"][required]').forEach(radio => {
                 radioGroups.add(radio.name);
             });
-
-            // Itera sobre cada nome de grupo único (ex: 'bebida', 'video') e verifica se algum foi marcado
             radioGroups.forEach(groupName => {
-                const isGroupChecked = currentStepElement.querySelector(`input[name="${groupName}"]:checked`);
-                if (!isGroupChecked) {
+                if (!currentStepElement.querySelector(`input[name="${groupName}"]:checked`)) {
                     isValid = false;
                 }
             });
-
             return isValid;
         }
 
+        function handleFormSubmit() {
+             // Coleta todos os dados do formulário
+            const formData = new FormData(form);
+            const templateParams = {};
+            for (const [key, value] of formData.entries()) {
+                templateParams[key] = value;
+            }
+            
+            nextBtn.textContent = 'Enviando...';
+            nextBtn.disabled = true;
+
+            // Envia o e-mail
+            emailjs.send('service_371n5nf', 'template_tkdoio6', templateParams) // <-- SEU SERVICE ID E TEMPLATE ID
+                .then(function(response) {
+                   console.log('SUCCESS!', response.status, response.text);
+                   formContainer.style.display = 'none';
+                   thankYouPage.classList.remove('hidden');
+                }, function(error) {
+                   console.log('FAILED...', error);
+                   alert('Ocorreu um erro ao enviar o formulário. Tente novamente!');
+                   nextBtn.textContent = 'Enviar Casting 🚀';
+                   nextBtn.disabled = false;
+                });
+        }
 
         nextBtn.addEventListener('click', () => {
             if (validateStep(currentStep)) {
@@ -251,9 +265,7 @@
                     currentStep++;
                     updateForm();
                 } else {
-                    // Simula o envio
-                    formContainer.style.display = 'none';
-                    thankYouPage.classList.remove('hidden');
+                    handleFormSubmit(); // Chama a função de envio
                 }
             } else {
                 alert('Por favor, preencha todos os campos para continuar!');
@@ -267,7 +279,6 @@
             }
         });
 
-        // Adiciona a tag 'required' ao primeiro radio de cada grupo para a validação funcionar
         document.addEventListener('DOMContentLoaded', () => {
              const radioGroups = {};
              document.querySelectorAll('input[type="radio"]').forEach(radio => {
